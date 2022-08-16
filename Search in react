@@ -1,0 +1,235 @@
+import React, { useState, useEffect } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import VisibilityIcon from '@mui/icons-material/Visibility';
+import EditIcon from '@mui/icons-material/Edit';
+import SettingsIcon from '@mui/icons-material/Settings';
+import ReceiptLongIcon from '@mui/icons-material/ReceiptLong';
+import DescriptionIcon from '@mui/icons-material/Description';
+import LockIcon from '@mui/icons-material/Lock';
+import GroupIcon from '@mui/icons-material/Group';
+import LockOpenIcon from '@mui/icons-material/LockOpen';
+import {
+  IconButton,
+  Button,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TablePagination,
+  Tooltip, 
+  TextField,
+ } from '@mui/material';
+import SuccessAlert from '../../components/alert/SuccessAlert';
+import useStyles from '../ViewTableStyles';
+import { getAllMasterAccounts } from '../../services/masterService';
+import Loader from '../../components/loader/Loader';
+import ErrorAlert from '../../components/alert/ErrorAlert';
+import ActivateDeactivate from './activate-deactivate-master-account/ActivateDeactivate';
+
+export default function Home(props) {
+  const classes = useStyles();
+  const navigate = useNavigate();
+  const [page, setPage] = useState(0);
+  const [rowsPerPage, setRowsPerPage] = useState(10);
+  const [isLoading, setLoading] = useState(false);
+  const [isError, setError] = useState(false);
+  const [alertMsg, setAlertMsg] = useState('');
+  const [newData, setNewData] = useState('');
+  const [isSuccess, setSuccess] = useState(false);
+  const [isOpen, setOpen] = useState(false);
+  const [isActivated, setIsActivated] = useState(null);
+  const [rowData, setRowData] = useState('');
+  const [searchedVal, setSearchedVal] = useState("");
+
+  
+  const handleChangePage = (event, newPage) => {
+    setPage(newPage);
+  };
+
+  const handleChangeRowsPerPage = (event) => {
+    setRowsPerPage(+event.target.value);
+    setPage(0);
+  };
+
+  const handleSetting = (data) => {
+    navigate(`/dashboard/master-account-settings/${data.ID}`, { state: { masterAccountName: data.username } });
+  };
+  const handleBrokers = (data) => {
+    navigate(`/dashboard/master-account-brokers/${data.ID}/${data.publicKey}`, {
+      state: { masterAccountName: data.username },
+    });
+  };
+  const handleEdit = (data) => {
+    navigate(`/dashboard/edit/${data.ID}`, { state: { masterAccountName: data.username } });
+  };
+
+  const handleActivateDeactivate = (row) => {
+    setRowData(row);
+    setOpen(true);
+    if (row.isActive) {
+      setIsActivated(true);
+    } else {
+      setIsActivated(false);
+    }
+  };
+
+  const handlePortfolio = (data) => {
+    navigate(`/dashboard/master-account-portfolio/${data.ID}/${data.publicKey}`, {
+      state: { masterAccountName: data.username },
+    });
+  };
+
+  const getAllMasterAccount = async () => {
+    setLoading(true);
+    const res = await getAllMasterAccounts();
+    if (res.status === 200) {
+      setLoading(false);
+      setNewData(res?.data?.data?.masters);
+    }
+    if (res.code === 'ERR_BAD_REQUEST') {
+      setLoading(false);
+      setError(true);
+      setAlertMsg(res?.response?.data || 'Something went wrong');
+    }
+    if (res.code === 'ERR_NETWORK') {
+      setLoading(false);
+      setError(true);
+      setAlertMsg(res?.message || 'Something went wrong');
+    }
+    console.log(res);
+    setLoading(false);
+  };
+
+  useEffect(() => {
+    getAllMasterAccount();
+  }, []);
+
+  return (
+    <>
+      {isLoading ? (
+        <Loader />
+      ) : (
+        <Paper elevation={10} className={classes.root}>
+          <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+            <span>All Master Accounts</span>
+            <Link to="/dashboard/create-master-account" style={{ textDecoration: 'none' }}>
+              <Button variant="contained" color="primary" onClick={() => console.log('clicked')}>
+                Create New Account
+              </Button>
+            </Link>
+          </div>
+          <TextField size="small" type="text" placeholder="Search" onChange={(e) => setSearchedVal(e.target.value)} />
+          <TableContainer className={classes.tableContainer}>
+            <Table className={classes.table} aria-label="simple table">
+              <TableHead className={classes.tableHeaderCell}>
+                <TableRow>
+                  <TableCell>Master Account Names</TableCell>
+                  <TableCell align="center">Account Managers</TableCell>
+                  <TableCell align="right"> Action </TableCell>
+                </TableRow>
+              </TableHead>
+              {!newData || newData.length === 0 ? (
+                <caption style={{ textAlign: 'center' }}>Sorry! No data available</caption>
+              ) : (
+                <>
+                  <TableBody>
+                    {newData.filter((row) =>
+                      !searchedVal.length || row?.username
+                        .toString()
+                        .toLowerCase()
+                        .includes(searchedVal.toString().toLowerCase())
+                    ).slice(page * rowsPerPage, page * rowsPerPage + rowsPerPage).map((row) => (
+                      <TableRow key={row?.ID}>
+                        <TableCell>{row?.username || '-'}</TableCell>
+                        <TableCell align="center">{'-'}</TableCell>
+                        <TableCell align="right">
+                          <Tooltip title="Portfolio">
+                            <IconButton style={{ cursor: 'pointer' }} onClick={() => handlePortfolio(row)}>
+                              <DescriptionIcon
+                                color="primary"
+                                fontSize="small"
+                                style={{ cursor: 'pointer', color: 'brown' }}
+                              />
+                            </IconButton>
+                          </Tooltip>
+                          <Tooltip title="Broker Accounts">
+                            <IconButton style={{ cursor: 'pointer' }} onClick={() => handleBrokers(row)}>
+                              <GroupIcon fontSize="small" style={{ cursor: 'pointer', color: '#002984' }} />
+                            </IconButton>
+                          </Tooltip>
+                          {/* <Tooltip title="View">
+                            <IconButton style={{ cursor: 'pointer' }} onClick={() => console.log(row)}>
+                              <VisibilityIcon fontSize="small" style={{ cursor: 'pointer', color: 'blue' }} />
+                            </IconButton>
+                          </Tooltip> */}
+                          <Tooltip title="Edit">
+                            <IconButton style={{ cursor: 'pointer' }} onClick={() => handleEdit(row)}>
+                              <EditIcon color="primary" fontSize="small" style={{ cursor: 'pointer' }} />
+                            </IconButton>
+                          </Tooltip>
+                          {row.isActive === true ? (
+                            <Tooltip title="Account is activated">
+                              <IconButton style={{ cursor: 'pointer' }} onClick={() => handleActivateDeactivate(row)}>
+                                <LockOpenIcon fontSize="small" style={{ cursor: 'pointer', color: 'green' }} />
+                              </IconButton>
+                            </Tooltip>
+                          ) : (
+                            <Tooltip title="Account is deactivated">
+                              <IconButton style={{ cursor: 'pointer' }} onClick={() => handleActivateDeactivate(row)}>
+                                <LockIcon fontSize="small" style={{ cursor: 'pointer', color: 'red' }} />
+                              </IconButton>
+                            </Tooltip>
+                          )}
+                          <Tooltip title="Settings">
+                            <IconButton style={{ cursor: 'pointer' }} onClick={() => handleSetting(row)}>
+                              <SettingsIcon fontSize="small" style={{ cursor: 'pointer', color: 'orange' }} />
+                            </IconButton>
+                          </Tooltip>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </>
+              )}
+            </Table>
+          </TableContainer>
+          <TablePagination
+            rowsPerPageOptions={[10, 15, 25]}
+            component="div"
+            count={newData?.length || 0}
+            rowsPerPage={rowsPerPage}
+            page={page}
+            onPageChange={handleChangePage}
+            onRowsPerPageChange={handleChangeRowsPerPage}
+            sx={{
+              '.MuiTablePagination-displayedRows': {
+                marginBottom: 0,
+              },
+              '.MuiTablePagination-selectLabel': {
+                marginBottom: 0,
+              },
+            }}
+          />
+        </Paper>
+      )}
+      <ErrorAlert isError={isError} setError={setError} alertMsg={alertMsg} />
+      {isOpen && (
+        <ActivateDeactivate
+          isOpen={isOpen}
+          setOpen={setOpen}
+          isActivated={isActivated}
+          setIsActivated={setIsActivated}
+          setSuccess={setSuccess}
+          setAlertMsg={setAlertMsg}
+          rowData={rowData}
+          setError={setError}
+          getAllMasterAccount={getAllMasterAccount}
+        />
+      )}
+      {<SuccessAlert isSuccess={isSuccess} setSuccess={setSuccess} alertMsg={alertMsg} />}
+    </>
+  );
+}
